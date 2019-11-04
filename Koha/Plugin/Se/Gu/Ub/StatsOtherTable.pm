@@ -151,7 +151,7 @@ sub AlternateUpdateStats {
          itemnumber, itemtype, location, 
          ccode, biblionumber, title, author, 
          callno, categorycode, borrowernumber, issue_note, issue_auto_renew)
-         VALUES (now(),?,?,?,?, ?,?,?,?, ?,?,?,?, ?,?)"
+         VALUES (now(),?,?,?,?, ?,?,?,?, ?,?,?,?, ?,?, ?, ?)"
     );
     $sth->execute(
         $branch,     $type,     $amount,   $other,
