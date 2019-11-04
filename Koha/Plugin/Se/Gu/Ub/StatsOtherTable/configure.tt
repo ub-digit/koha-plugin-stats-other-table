@@ -1,0 +1,43 @@
+[% INCLUDE 'doc-head-open.inc' %]
+ <title>Koha: StatsOtherTable: Configuration</title>
+[% INCLUDE 'doc-head-close.inc' %]
+</head>
+<body>
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; StatsOtherTable &rsaquo; Configuration</div>
+
+<div id="doc3">
+    <!-- img src="[% PLUGIN_PATH %]/logo.png" -->
+    <h3>Koha: StatsOtherTable: Configuration</h3>
+    <form method="GET">
+        <input type="hidden" name="class" value="[% CLASS %]"/>
+        <input type="hidden" name="method" value="[% METHOD %]"/>
+
+        <!-- TODO: Description/Help text for all fieds, translations -->
+        <fieldset class="rows">
+        <legend>Options</legend>
+        <ol>
+        <li>
+            <label for="tablename">Table name:</label>
+            <input id="tablename" type="text" name="tablename" value="[% tablename %]" />
+        </li>
+        <li>
+            <label for="create_table_if_missing">Create table if it does not exist:</label>
+            [% IF create_table_if_missing %]
+                <input id="create_table_if_missing" type="checkbox" name="create_table_if_missing"" value="1" checked>
+            [% ELSE %]
+                <input id="create_table_if_missing" type="checkbox" name="create_table_if_missing"" value="1">
+            [% END %]       
+        </li>
+        </ol>
+        </fieldset>
+        <input type="hidden" name="save" value="1" />
+        <fieldset class="action">
+            <input type="submit" value="Save configuration" />
+        </fieldset>
+    </form>
+</div>
+
+[% INCLUDE 'intranet-bottom.inc' %]
