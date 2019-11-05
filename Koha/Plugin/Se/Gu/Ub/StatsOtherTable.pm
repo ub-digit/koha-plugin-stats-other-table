@@ -128,6 +128,9 @@ sub AlternateUpdateStats {
             $callno = $item->itemcallnumber();
             $biblio = $item->biblio();
             $biblionumber = $item->biblionumber();
+            if(!$location) {
+                $location = $item->location();
+            }
             if($biblio) {
                 $title = $biblio->title();
                 $author = $biblio->author();
