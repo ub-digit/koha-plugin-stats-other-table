@@ -140,6 +140,9 @@ sub AlternateUpdateStats {
                 if($issue) {
                     $issue_note = $issue->note();
                     $issue_auto_renew = $issue->auto_renew();
+                    if($type eq "renew") {
+                        $other = $issue->issuedate();
+                    }
                 }
             }
         }
