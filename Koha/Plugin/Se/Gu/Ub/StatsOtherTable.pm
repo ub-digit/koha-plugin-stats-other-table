@@ -66,29 +66,124 @@ sub configure {
     }
 }
 
-sub update_stats {
-    my ($self, $args) = @_;
+sub after_hold_action {
+    my ($self, $params) = @_;
 
-#    print STDERR Dumper(["DEBUG", $args]);
+    my $action = $params->{action};
+    my $payload = $params->{payload};
+    my $hold = $payload->{hold};
+
+    my $tablename = $self->setup();
+    return unless($tablename);
+
+    AlternateUpdateStats($tablename, {
+        branch => C4::Context->userenv->{'branch'},
+        type => "hold_".$action,
+        biblio => $hold->biblio(),
+        other => $hold->branchcode(),
+        itemnumber => $hold->itemnumber,
+        borrowernumber => $hold->borrowernumber
+    });
+}
+
+sub after_account_action {
+    my ($self, $params) = @_;
+
+    my $action = $params->{action};
+    my $payload = $params->{payload};
+    my $line = $payload->{line};
+    my $type = $payload->{type};
+
+    my $tablename = $self->setup();
+    return unless($tablename);
+
+    return unless($action eq "add_credit");
+
+    AlternateUpdateStats($tablename, {
+        branch => $line->branchcode(),
+        type => $type,
+        amount => $line->amount(),
+        other => $line->interface(),
+        itemnumber => $line->itemnumber,
+        borrowernumber => $line->borrowernumber
+    });
+}
+
+sub after_circ_action {
+    my ($self, $params) = @_;
+
+    my $action = $params->{action};
+    my $payload = $params->{payload};
+
+    my $tablename = $self->setup();
+    return unless($tablename);
+
+    if($action eq "checkout") {
+        circ_action_checkout($tablename, $payload->{checkout}, $payload->{type});
+    }
+    if($action eq "checkin") {
+        circ_action_checkin($tablename, $payload->{checkout});
+    }
+    if($action eq "renewal") {
+        circ_action_renewal($tablename, $payload->{checkout});
+    }
+}
+
+sub circ_action_checkout {
+    my ($tablename, $checkout, $type) = @_;
+    AlternateUpdateStats($tablename, {
+        branch => C4::Context->userenv->{'branch'},
+        type => $type,
+        itemnumber => $checkout->itemnumber,
+        itemtype => $checkout->item->effective_itemtype,
+        location => $checkout->item->location,
+        borrowernumber => $checkout->borrowernumber,
+        ccode => $checkout->item->ccode
+    });
+}
+
+sub circ_action_checkin {
+    my ($tablename, $checkout) = @_;
+    AlternateUpdateStats($tablename, {
+        branch => C4::Context->userenv->{'branch'},
+        type => 'return',
+        itemnumber => $checkout->itemnumber,
+        itemtype => $checkout->item->effective_itemtype,
+        location => $checkout->item->location,
+        borrowernumber => $checkout->borrowernumber,
+        ccode => $checkout->item->ccode,
+        issue_note => $checkout->note,
+        issue_auto_renew => $checkout->auto_renew
+    });
+}
+
+sub circ_action_renewal {
+    my ($tablename, $checkout) = @_;
+    AlternateUpdateStats($tablename, {
+        branch => C4::Context->userenv->{'branch'},
+        type => 'renew',
+        itemnumber => $checkout->itemnumber,
+        itemtype => $checkout->item->effective_itemtype,
+        location => $checkout->item->location,
+        borrowernumber => $checkout->borrowernumber,
+        ccode => $checkout->item->ccode,
+        issue_note => $checkout->note,
+        issue_auto_renew => $checkout->auto_renew
+    });
+}
+
+sub setup {
+    my ($self) = @_;
     my $tablename = $self->retrieve_data('tablename');
     my $create_table_if_missing = $self->retrieve_data('create_table_if_missing');
 
     $self->create_table_if_missing($tablename, $create_table_if_missing);
-    
-    # Only write to table if tablename is specified
-    if($tablename) {
-        AlternateUpdateStats($tablename, $args);
-    }
-
-    # Need to return args so that chaining of plugins work.
-    return $args;
+    return $tablename;
 }
 
-# For now simply a copy of the current UpdateStats with some tweaks
 sub AlternateUpdateStats {
     my ($tablename, $params) = @_;
     
-# get the parameters
     my $branch            = $params->{branch};
     my $type              = $params->{type};
     my $borrowernumber    = exists $params->{borrowernumber} ? $params->{borrowernumber} : '';
@@ -98,14 +193,14 @@ sub AlternateUpdateStats {
     my $itemtype          = exists $params->{itemtype}       ? $params->{itemtype}       : '';
     my $location          = exists $params->{location}       ? $params->{location}       : undef;
     my $ccode             = exists $params->{ccode}          ? $params->{ccode}          : '';
-    my $biblio;
+    my $biblio            = exists $params->{biblio}         ? $params->{biblio}         : undef;
     my $biblionumber;
     my $item;
     my $title;
     my $author;
     my $callno;
-    my $issue_note;
-    my $issue_auto_renew;
+    my $issue_note        = exists $params->{issue_note}       ? $params->{issue_note} : undef;
+    my $issue_auto_renew  = exists $params->{issue_auto_renew} ? $params->{issue_auto_renew} : undef;
 
     my $logged_in_borrowernumber;
     my $current_user = C4::Context->userenv;
@@ -116,33 +211,44 @@ sub AlternateUpdateStats {
     # Add categorycode field if we have a borrowernumber
     my $categorycode = '';
     if($borrowernumber) {
-	my $patron = Koha::Patrons->find($borrowernumber);
-	if($patron) {
-	    $categorycode = $patron->categorycode();
-	}
+        my $patron = Koha::Patrons->find($borrowernumber);
+        if($patron) {
+            $categorycode = $patron->categorycode();
+        }
     }
     
-    if($itemnumber) {
+    if(!$item && $itemnumber) {
         $item = Koha::Items->find($itemnumber);
-        if($item) {
-            $callno = $item->itemcallnumber();
-            $biblio = $item->biblio();
-            $biblionumber = $item->biblionumber();
-            if(!$location) {
-                $location = $item->location();
-            }
-            if($biblio) {
-                $title = $biblio->title();
-                $author = $biblio->author();
-            }
-            if($type eq "issue" || $type eq "renew") {
-                my $issue = Koha::Checkouts->find({itemnumber => $itemnumber, borrowernumber => $borrowernumber});
-                if($issue) {
-                    $issue_note = $issue->note();
-                    $issue_auto_renew = $issue->auto_renew();
-                    if($type eq "renew") {
-                        $other = $issue->issuedate();
-                    }
+    }
+
+    if(!$biblio && $item) {
+        $biblio = $item->biblio();
+    }
+
+    if($biblio) {
+        $title = $biblio->title();
+        $author = $biblio->author();
+        $biblionumber = $biblio->biblionumber();
+    }
+
+    if($item) {
+        $callno = $item->itemcallnumber();
+        if(!$location) {
+            $location = $item->location();
+        }
+        if(!$ccode) {
+            $ccode = $item->ccode();
+        }
+        if(!$itemtype) {
+            $itemtype = $item->effective_itemtype;
+        }
+        if($type eq "issue" || $type eq "renew") {
+            my $issue = Koha::Checkouts->find({itemnumber => $itemnumber, borrowernumber => $borrowernumber});
+            if($issue) {
+                $issue_note = $issue->note();
+                $issue_auto_renew = $issue->auto_renew();
+                if($type eq "renew") {
+                    $other = $issue->issuedate();
                 }
             }
         }
