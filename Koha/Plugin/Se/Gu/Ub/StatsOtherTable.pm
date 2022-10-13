@@ -208,12 +208,16 @@ sub AlternateUpdateStats {
         $logged_in_borrowernumber = $current_user->{'number'};
     }
     
-    # Add categorycode field if we have a borrowernumber
+    # Add categorycode field and organisation attribute value if we have a borrowernumber
     my $categorycode = '';
+    my $organisation = '';
     if($borrowernumber) {
         my $patron = Koha::Patrons->find($borrowernumber);
         if($patron) {
             $categorycode = $patron->categorycode();
+
+            my $attribute = $patron->get_extended_attribute('ORG');
+            $organisation = $attribute->attribute if defined $attribute;
         }
     }
     
@@ -262,14 +266,16 @@ sub AlternateUpdateStats {
          branch, type, value, other,
          itemnumber, itemtype, location, 
          ccode, biblionumber, title, author, 
-         callno, categorycode, borrowernumber, issue_note, issue_auto_renew)
-         VALUES (now(),?,?,?,?, ?,?,?,?, ?,?,?,?, ?,?, ?, ?)"
+         callno, categorycode, organisation,
+         borrowernumber, issue_note, issue_auto_renew)
+         VALUES (now(),?,?,?,?, ?,?,?,?, ?,?,?,?, ?,?,?,?, ?)"
     );
     $sth->execute(
         $branch,     $type,     $amount,   $other,
         $itemnumber, $itemtype, $location, 
         $ccode, $biblionumber, $title, $author,
-        $callno, $categorycode, $logged_in_borrowernumber, $issue_note, $issue_auto_renew
+        $callno, $categorycode, $organisation,
+        $logged_in_borrowernumber, $issue_note, $issue_auto_renew
     );
 }
 
@@ -300,6 +306,7 @@ sub create_table_if_missing {
       author longtext,
       callno longtext,
       categorycode varchar(10),
+      organisation varchar(255),
       borrowernumber int(11),
       issue_note longtext,
       issue_auto_renew tinyint(1)
