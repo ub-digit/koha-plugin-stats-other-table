@@ -124,6 +124,9 @@ sub after_circ_action {
     if($action eq "checkin") {
         circ_action_checkin($tablename, $payload->{checkout});
     }
+    if($action eq "checkin_no_issue") {
+        circ_action_checkin_no_issue($tablename, $payload->{checkin});
+    }
     if($action eq "renewal") {
         circ_action_renewal($tablename, $payload->{checkout});
     }
@@ -154,6 +157,18 @@ sub circ_action_checkin {
         ccode => $checkout->item->ccode,
         issue_note => $checkout->note,
         issue_auto_renew => $checkout->auto_renew
+    });
+}
+
+sub circ_action_checkin_no_issue {
+    my ($tablename, $item) = @_;
+    AlternateUpdateStats($tablename, {
+        branch => C4::Context->userenv->{'branch'},
+        type => 'return',
+        itemnumber => $item->itemnumber,
+        itemtype => $item->effective_itemtype,
+        location => $item->location,
+        ccode => $item->ccode
     });
 }
 
