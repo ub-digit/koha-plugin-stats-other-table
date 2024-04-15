@@ -82,7 +82,8 @@ sub after_hold_action {
         biblio => $hold->biblio(),
         other => $hold->branchcode(),
         itemnumber => $hold->itemnumber,
-        borrowernumber => $hold->borrowernumber
+        borrowernumber => $hold->borrowernumber,
+        reserve_found_value = $hold->found
     });
 }
 
@@ -199,23 +200,24 @@ sub setup {
 sub AlternateUpdateStats {
     my ($tablename, $params) = @_;
     
-    my $branch            = $params->{branch};
-    my $type              = $params->{type};
-    my $borrowernumber    = exists $params->{borrowernumber} ? $params->{borrowernumber} : '';
-    my $itemnumber        = exists $params->{itemnumber}     ? $params->{itemnumber}     : undef;
-    my $amount            = exists $params->{amount}         ? $params->{amount}         : 0;
-    my $other             = exists $params->{other}          ? $params->{other}          : '';
-    my $itemtype          = exists $params->{itemtype}       ? $params->{itemtype}       : '';
-    my $location          = exists $params->{location}       ? $params->{location}       : undef;
-    my $ccode             = exists $params->{ccode}          ? $params->{ccode}          : '';
-    my $biblio            = exists $params->{biblio}         ? $params->{biblio}         : undef;
+    my $branch              = $params->{branch};
+    my $type                = $params->{type};
+    my $borrowernumber      = exists $params->{borrowernumber} ? $params->{borrowernumber} : '';
+    my $itemnumber          = exists $params->{itemnumber}     ? $params->{itemnumber}     : undef;
+    my $amount              = exists $params->{amount}         ? $params->{amount}         : 0;
+    my $other               = exists $params->{other}          ? $params->{other}          : '';
+    my $itemtype            = exists $params->{itemtype}       ? $params->{itemtype}       : '';
+    my $location            = exists $params->{location}       ? $params->{location}       : undef;
+    my $ccode               = exists $params->{ccode}          ? $params->{ccode}          : '';
+    my $biblio              = exists $params->{biblio}         ? $params->{biblio}         : undef;
     my $biblionumber;
     my $item;
     my $title;
     my $author;
     my $callno;
-    my $issue_note        = exists $params->{issue_note}       ? $params->{issue_note} : undef;
-    my $issue_auto_renew  = exists $params->{issue_auto_renew} ? $params->{issue_auto_renew} : undef;
+    my $issue_note          = exists $params->{issue_note}       ? $params->{issue_note} : undef;
+    my $issue_auto_renew    = exists $params->{issue_auto_renew} ? $params->{issue_auto_renew} : undef;
+    my $reserve_found_value = exists $params->{reserve_found_value} ? $params->{reserve_found_value} : undef;
 
     my $logged_in_borrowernumber;
     my $current_user = C4::Context->userenv;
@@ -282,15 +284,16 @@ sub AlternateUpdateStats {
          itemnumber, itemtype, location, 
          ccode, biblionumber, title, author, 
          callno, categorycode, organisation,
-         borrowernumber, issue_note, issue_auto_renew)
-         VALUES (now(),?,?,?,?, ?,?,?,?, ?,?,?,?, ?,?,?,?, ?)"
+         borrowernumber, issue_note, issue_auto_renew, reserve_found_value)
+         VALUES (now(),?,?,?,?, ?,?,?,?, ?,?,?,?, ?,?,?,?, ?, ?)"
     );
     $sth->execute(
         $branch,     $type,     $amount,   $other,
         $itemnumber, $itemtype, $location, 
         $ccode, $biblionumber, $title, $author,
         $callno, $categorycode, $organisation,
-        $logged_in_borrowernumber, $issue_note, $issue_auto_renew
+        $logged_in_borrowernumber, $issue_note, $issue_auto_renew,
+        $reserve_found_value
     );
 }
 
