@@ -83,7 +83,7 @@ sub after_hold_action {
         other => $hold->branchcode(),
         itemnumber => $hold->itemnumber,
         borrowernumber => $hold->borrowernumber,
-        reserve_found_value = $hold->found
+        reserve_found_value => $hold->found
     });
 }
 
